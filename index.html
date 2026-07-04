@@ -404,16 +404,25 @@
     });
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
       const response = await fetch(APPS_SCRIPT_URL + "?" + params.toString(), {
-        method: "GET"
+        method: "GET",
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) throw new Error("Server responded with an error");
 
       showBanner("success", "Note sent successfully.");
       setTimeout(resetToStart, 1800);
     } catch (err) {
-      showBanner("failure", "Failed to send. Check your connection and try again — your note is still shown below.");
+      const timedOut = err.name === "AbortError";
+      showBanner("failure", timedOut
+        ? "Sending timed out — likely weak signal. Your note is still shown below, try again."
+        : "Failed to send. Check your connection and try again — your note is still shown below.");
       btnSend.disabled = false;
       btnSend.innerText = "Send note";
       status.innerText = "Send failed — try again";
