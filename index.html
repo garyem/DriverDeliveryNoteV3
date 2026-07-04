@@ -396,17 +396,16 @@
     btnSend.innerText = "Sending...";
     status.innerText = "Sending note...";
 
-    const payload = {
+    const submissionId = "dt-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+    const params = new URLSearchParams({
       note: finalText,
       timestamp: new Date().toISOString(),
-      submissionId: "dt-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8)
-    };
+      submissionId: submissionId
+    });
 
     try {
-      const response = await fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(payload)
+      const response = await fetch(APPS_SCRIPT_URL + "?" + params.toString(), {
+        method: "GET"
       });
 
       if (!response.ok) throw new Error("Server responded with an error");
