@@ -8,15 +8,11 @@
   :root {
     --bg: #0f1420;
     --panel: #1b2333;
-    --panel-light: #232d42;
     --text: #f4f6fb;
     --muted: #8b93a7;
     --accent: #22c55e;
-    --accent-dark: #16a34a;
     --danger: #dc2626;
     --warn: #f59e0b;
-    --edit: #3b82f6;
-    --discard: #374151;
   }
 
   * { box-sizing: border-box; }
@@ -91,6 +87,7 @@
   #recordButton:disabled { background: #4b5563; color: var(--muted); cursor: not-allowed; }
   #recordButton:active { transform: scale(0.97); }
   #recordButton.recording { background: var(--danger); color: #fff; animation: pulse 1.4s infinite; }
+  #recordButton.sending { background: var(--warn); color: #0f1420; }
 
   @keyframes pulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
@@ -105,85 +102,33 @@
     color: var(--warn);
     min-height: 26px;
     text-align: center;
+    max-width: 320px;
   }
 
-  #transcriptCard {
+  #lastNote {
     display: none;
-    margin-top: 8px;
+    margin-top: 18px;
     background: var(--panel);
     border-radius: 16px;
-    padding: 18px;
+    padding: 16px;
     max-width: 380px;
     width: 100%;
     text-align: left;
   }
 
-  #transcriptLabel {
-    font-size: 0.75rem;
+  #lastNoteLabel {
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--muted);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
-  #transcript {
-    font-size: 1.05rem;
-    line-height: 1.55;
-    color: var(--text);
-    white-space: pre-wrap;
-  }
-
-  #editBox {
-    display: none;
-    width: 100%;
-    max-width: 380px;
-    background: var(--panel);
-    border: 1px solid var(--panel-light);
-    border-radius: 16px;
-    padding: 16px;
-    color: var(--text);
-    font-size: 1.05rem;
-    font-family: inherit;
+  #lastNoteText {
+    font-size: 0.98rem;
     line-height: 1.5;
-    resize: vertical;
-    min-height: 120px;
-    margin-top: 8px;
+    color: var(--text);
   }
-
-  #editBox:focus { outline: 2px solid var(--edit); }
-
-  #actions {
-    display: none;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 18px;
-    width: 100%;
-    max-width: 380px;
-  }
-
-  .action-btn {
-    width: 100%;
-    padding: 16px;
-    border-radius: 14px;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.12s ease, opacity 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-family: inherit;
-  }
-
-  .action-btn:active { transform: scale(0.98); opacity: 0.85; }
-  .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .btn-send { background: var(--accent); color: #0f1420; }
-  .btn-edit { background: var(--edit); color: #fff; }
-  .btn-rerecord { background: var(--warn); color: #0f1420; }
-  .btn-discard { background: var(--discard); color: #d1d5db; }
 
   #noSupport {
     color: #f87171;
@@ -220,7 +165,7 @@
     <div class="brand-dot"></div>
     <div class="brand-name">DriveTalk <span style="color: var(--muted); font-weight: 500;">v3</span></div>
   </div>
-  <p class="tagline">Tap, speak your delivery note, and send it straight to the sheet.</p>
+  <p class="tagline">Tap the button, speak your note, and it's sent automatically when you stop talking.</p>
 
   <button id="recordButton">
     <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -236,27 +181,17 @@
 
   <div id="status">Ready</div>
 
-  <div id="transcriptCard">
-    <div id="transcriptLabel">Your note</div>
-    <div id="transcript"></div>
-  </div>
-
-  <textarea id="editBox" placeholder="Edit your note here..."></textarea>
-
-  <div id="actions">
-    <button class="action-btn btn-send" id="btnSend">Send note</button>
-    <button class="action-btn btn-edit" id="btnEdit">Edit note</button>
-    <button class="action-btn btn-rerecord" id="btnRerecord">Re-record</button>
-    <button class="action-btn btn-discard" id="btnDiscard">Discard</button>
-  </div>
-
   <div id="banner"></div>
+
+  <div id="lastNote">
+    <div id="lastNoteLabel">Last note sent</div>
+    <div id="lastNoteText"></div>
+  </div>
 </div>
 
 <script>
   // ---------------------------------------------------------------
-  // Paste the URL you get from deploying the Google Apps Script
-  // web app here. Instructions for creating it are in the chat.
+  // Your Google Apps Script web app URL
   // ---------------------------------------------------------------
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw5CDWhOxFzj3YWSRPAQsA38nLyBS5b1WZ11A8hOT6niO2qhMTlVjTeXyUVf_jGsXcKmA/exec";
 
@@ -264,143 +199,38 @@
   const btnLabel = document.getElementById("btnLabel");
   const status = document.getElementById("status");
   const noSupport = document.getElementById("noSupport");
-  const transcriptCard = document.getElementById("transcriptCard");
-  const transcript = document.getElementById("transcript");
-  const editBox = document.getElementById("editBox");
-  const actions = document.getElementById("actions");
   const banner = document.getElementById("banner");
-
-  const btnSend = document.getElementById("btnSend");
-  const btnEdit = document.getElementById("btnEdit");
-  const btnRerecord = document.getElementById("btnRerecord");
-  const btnDiscard = document.getElementById("btnDiscard");
+  const lastNote = document.getElementById("lastNote");
+  const lastNoteText = document.getElementById("lastNoteText");
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  let finalText = "";
-  let isRecording = false;
-  let isEditing = false;
+  let isBusy = false; // true while recording OR sending
 
-  function resetToStart() {
-    recordButton.style.display = "flex";
+  function setReady() {
+    isBusy = false;
     recordButton.disabled = false;
-    recordButton.classList.remove("recording");
+    recordButton.classList.remove("recording", "sending");
     btnLabel.innerText = "Tap to record";
-    transcriptCard.style.display = "none";
-    editBox.style.display = "none";
-    actions.style.display = "none";
-    banner.style.display = "none";
     status.innerText = "Ready";
-    finalText = "";
-    isEditing = false;
-    btnSend.disabled = false;
-    btnSend.innerText = "Send note";
-  }
-
-  function showReviewState() {
-    recordButton.style.display = "none";
-    transcriptCard.style.display = "block";
-    transcript.innerText = finalText;
-    actions.style.display = "flex";
-    status.innerText = "What would you like to do with this note?";
   }
 
   function showBanner(kind, message) {
     banner.className = kind;
     banner.innerText = message;
     banner.style.display = "block";
+    setTimeout(() => { banner.style.display = "none"; }, 4000);
   }
 
-  if (!SpeechRecognition) {
-    recordButton.disabled = true;
-    noSupport.style.display = "block";
-    status.innerText = "";
-  } else {
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-GB";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.continuous = false;
-
-    recordButton.addEventListener("click", () => {
-      if (isRecording) return;
-      finalText = "";
-      isRecording = true;
-      status.innerText = "Listening — speak now";
-      recordButton.disabled = true;
-      recordButton.classList.add("recording");
-      btnLabel.innerText = "Recording...";
-      try {
-        recognition.start();
-      } catch (e) {
-        status.innerText = "Could not start recording. Try again.";
-        isRecording = false;
-        recordButton.disabled = false;
-        recordButton.classList.remove("recording");
-        btnLabel.innerText = "Tap to record";
-      }
-    });
-
-    recognition.onresult = (e) => {
-      finalText = e.results[0][0].transcript.trim();
-    };
-
-    recognition.onerror = (e) => {
-      status.innerText = "Error: " + e.error + ". Try again.";
-    };
-
-    recognition.onend = () => {
-      isRecording = false;
-      recordButton.disabled = false;
-      recordButton.classList.remove("recording");
-      btnLabel.innerText = "Tap to record";
-
-      if (finalText.length > 0) {
-        showReviewState();
-      } else {
-        status.innerText = "No speech captured. Try again.";
-      }
-    };
-  }
-
-  btnEdit.addEventListener("click", () => {
-    isEditing = true;
-    editBox.value = finalText;
-    transcriptCard.style.display = "none";
-    editBox.style.display = "block";
-    editBox.focus();
-    status.innerText = "Editing note";
-
-    // Swap Edit for Save while editing
-    btnEdit.innerText = "Save changes";
-    btnEdit.onclick = () => {
-      finalText = editBox.value.trim();
-      editBox.style.display = "none";
-      btnEdit.innerText = "Edit note";
-      btnEdit.onclick = null;
-      isEditing = false;
-      showReviewState();
-    };
-  });
-
-  btnRerecord.addEventListener("click", () => {
-    resetToStart();
-  });
-
-  btnDiscard.addEventListener("click", () => {
-    resetToStart();
-  });
-
-  btnSend.addEventListener("click", async () => {
-    if (!finalText || finalText.length === 0) return;
-
-    btnSend.disabled = true;
-    btnSend.innerText = "Sending...";
+  async function sendNote(noteText) {
+    recordButton.classList.remove("recording");
+    recordButton.classList.add("sending");
+    btnLabel.innerText = "Sending...";
     status.innerText = "Sending note...";
 
     const submissionId = "dt-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
     const params = new URLSearchParams({
-      note: finalText,
+      note: noteText,
       timestamp: new Date().toISOString(),
       submissionId: submissionId
     });
@@ -418,18 +248,76 @@
 
       if (!response.ok) throw new Error("Server responded with an error");
 
-      showBanner("success", "Note sent successfully.");
-      setTimeout(resetToStart, 1800);
+      showBanner("success", "Note sent.");
+      lastNoteText.innerText = noteText;
+      lastNote.style.display = "block";
     } catch (err) {
       const timedOut = err.name === "AbortError";
       showBanner("failure", timedOut
-        ? "Sending timed out — likely weak signal. Your note is still shown below, try again."
-        : "Failed to send. Check your connection and try again — your note is still shown below.");
-      btnSend.disabled = false;
-      btnSend.innerText = "Send note";
-      status.innerText = "Send failed — try again";
+        ? "Sending timed out — likely weak signal. Please re-record this note."
+        : "Failed to send. Please re-record this note.");
+    } finally {
+      setReady();
     }
-  });
+  }
+
+  if (!SpeechRecognition) {
+    recordButton.disabled = true;
+    noSupport.style.display = "block";
+    status.innerText = "";
+  } else {
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-GB";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    let finalText = "";
+    let recordingWatchdog = null;
+
+    recordButton.addEventListener("click", () => {
+      if (isBusy) return;
+      finalText = "";
+      isBusy = true;
+      status.innerText = "Listening — speak now";
+      recordButton.classList.add("recording");
+      recordButton.disabled = true;
+      btnLabel.innerText = "Recording...";
+      banner.style.display = "none";
+      try {
+        recognition.start();
+        recordingWatchdog = setTimeout(() => {
+          try { recognition.stop(); } catch (e) {}
+          status.innerText = "Recording timed out. Try again.";
+          setReady();
+        }, 20000);
+      } catch (e) {
+        status.innerText = "Could not start recording. Try again.";
+        setReady();
+      }
+    });
+
+    recognition.onresult = (e) => {
+      finalText = e.results[0][0].transcript.trim();
+    };
+
+    recognition.onerror = (e) => {
+      clearTimeout(recordingWatchdog);
+      status.innerText = "Error: " + e.error + ". Try again.";
+      setReady();
+    };
+
+    recognition.onend = () => {
+      clearTimeout(recordingWatchdog);
+      if (!isBusy) return; // already reset by onerror above
+      if (finalText.length > 0) {
+        sendNote(finalText);
+      } else {
+        status.innerText = "No speech captured. Try again.";
+        setReady();
+      }
+    };
+  }
 </script>
 
 </body>
